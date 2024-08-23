@@ -76,30 +76,34 @@ const App: React.FC = () => {
   };
 
   const fetchProductData = async (barcode: string): Promise<Product> => {
-    const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch product data');
-    }
-    const data = await response.json();
-    return {
-      name: data.product.product_name || 'Unknown',
-      brand: data.product.brands || 'Unknown',
-      categories: data.product.categories || 'Unknown',
-      image_url: data.product.image_url || 'https://example.com/placeholder.jpg',
-    };
+    // Simulating API call to UPC Database
+    // In a real implementation, you would make an actual API call here
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        // Simulated API response
+        const mockData = {
+          name: `Product ${barcode}`,
+          brand: 'Sample Brand',
+          categories: 'Sample Category',
+          image_url: `https://example.com/product_${barcode}.jpg`,
+        };
+        resolve(mockData);
+      }, 1000);
+    });
   };
 
   const handleBarcodeSubmit = async (code: string) => {
     if (!code) return;
 
     setLoading(true);
+    setError(null);
     try {
       const productData = await fetchProductData(code);
       const response = await backend.scanBarcode(code, productData);
       if ('ok' in response) {
         setProduct(response.ok);
       } else {
-        setError('Product not found');
+        setError('Failed to save product information');
       }
     } catch (err) {
       console.error(err);

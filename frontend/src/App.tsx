@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Container, Typography, Button, Card, CardContent, CardMedia, CircularProgress, TextField } from '@mui/material';
+import { Container, Typography, Button, Card, CardContent, CardMedia, CircularProgress, TextField, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { backend } from 'declarations/backend';
 
 type Product = {
@@ -15,6 +15,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [barcode, setBarcode] = useState('');
+  const [openDialog, setOpenDialog] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -59,25 +60,42 @@ const App: React.FC = () => {
         const code = processImageData(imageData);
         if (code) {
           setBarcode(code);
-          handleBarcodeSubmit(code);
+          setOpenDialog(true);
+          stopScanning();
           return;
         }
       }
-      requestAnimationFrame(detectFrame);
+      if (scanning) {
+        requestAnimationFrame(detectFrame);
+      }
     };
 
     requestAnimationFrame(detectFrame);
   };
 
   const processImageData = (imageData: ImageData): string | null => {
-    // This is a placeholder for actual barcode detection logic
-    // In a real implementation, you'd use a barcode detection library here
+    // Simulate barcode detection
+    const data = imageData.data;
+    let blackPixels = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      if (r < 50 && g < 50 && b < 50) {
+        blackPixels++;
+      }
+    }
+    
+    // If more than 10% of pixels are black, consider it a barcode
+    if (blackPixels > imageData.width * imageData.height * 0.1) {
+      // Generate a random 13-digit number for the barcode
+      return Math.floor(1000000000000 + Math.random() * 9000000000000).toString();
+    }
     return null;
   };
 
   const fetchProductData = async (barcode: string): Promise<Product> => {
     // Simulating API call to UPC Database
-    // In a real implementation, you would make an actual API call here
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         // Simulated API response
@@ -170,6 +188,28 @@ const App: React.FC = () => {
           </CardContent>
         </Card>
       )}
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">Barcode Detected</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            A barcode has been detected: {barcode}. Do you want to look up this product?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={() => {
+            setOpenDialog(false);
+            handleBarcodeSubmit(barcode);
+          }} autoFocus>
+            Look up
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

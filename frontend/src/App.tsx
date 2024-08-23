@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Container, Typography, Button, Card, CardContent, CardMedia, CircularProgress, TextField, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { backend } from 'declarations/backend';
+import * as THREE from 'three';
 
 type Product = {
   name: string;
@@ -74,40 +75,64 @@ const App: React.FC = () => {
   };
 
   const processImageData = (imageData: ImageData): string | null => {
-    // Simulate barcode detection
+    const width = imageData.width;
+    const height = imageData.height;
     const data = imageData.data;
-    let blackPixels = 0;
+
+    // Convert to grayscale
+    const grayData = new Uint8Array(width * height);
     for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      if (r < 50 && g < 50 && b < 50) {
-        blackPixels++;
+      const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      grayData[i / 4] = gray;
+    }
+
+    // Apply threshold
+    const threshold = 128;
+    const binaryData = new Uint8Array(width * height);
+    for (let i = 0; i < grayData.length; i++) {
+      binaryData[i] = grayData[i] < threshold ? 0 : 1;
+    }
+
+    // Scan for barcode pattern
+    const middleRow = Math.floor(height / 2);
+    let barWidths = [];
+    let currentWidth = 0;
+    let currentColor = binaryData[middleRow * width];
+
+    for (let x = 0; x < width; x++) {
+      if (binaryData[middleRow * width + x] === currentColor) {
+        currentWidth++;
+      } else {
+        barWidths.push(currentWidth);
+        currentWidth = 1;
+        currentColor = binaryData[middleRow * width + x];
       }
     }
-    
-    // If more than 10% of pixels are black, consider it a barcode
-    if (blackPixels > imageData.width * imageData.height * 0.1) {
-      // Generate a random 13-digit number for the barcode
-      return Math.floor(1000000000000 + Math.random() * 9000000000000).toString();
+
+    if (barWidths.length < 30) return null; // Not enough bars for a valid barcode
+
+    // Decode barcode
+    const unitWidth = Math.min(...barWidths);
+    let code = '';
+    for (let i = 0; i < barWidths.length; i += 4) {
+      const digit = Math.round((barWidths[i] + barWidths[i + 1] + barWidths[i + 2] + barWidths[i + 3]) / unitWidth) - 4;
+      if (digit >= 0 && digit <= 9) {
+        code += digit.toString();
+      }
     }
-    return null;
+
+    return code.length >= 8 ? code : null;
   };
 
   const fetchProductData = async (barcode: string): Promise<Product> => {
-    // Simulating API call to UPC Database
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // Simulated API response
-        const mockData = {
-          name: `Product ${barcode}`,
-          brand: 'Sample Brand',
-          categories: 'Sample Category',
-          image_url: `https://example.com/product_${barcode}.jpg`,
-        };
-        resolve(mockData);
-      }, 1000);
-    });
+    // In a real application, you would make an API call here to fetch product data
+    // For this example, we'll return placeholder data
+    return {
+      name: `Product ${barcode}`,
+      brand: 'Unknown Brand',
+      categories: 'Unknown Category',
+      image_url: 'https://example.com/placeholder.jpg',
+    };
   };
 
   const handleBarcodeSubmit = async (code: string) => {

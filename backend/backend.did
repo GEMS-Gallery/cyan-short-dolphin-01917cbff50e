@@ -1,0 +1,16 @@
+type Result = 
+ variant {
+   err: text;
+   ok: Product;
+ };
+type Product = 
+ record {
+   brand: text;
+   categories: text;
+   image_url: text;
+   name: text;
+ };
+service : {
+  lookupProduct: (text) -> (Result);
+  scanBarcode: (text) -> (Result);
+}

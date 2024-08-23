@@ -11,6 +11,6 @@ type Product =
    name: text;
  };
 service : {
-  lookupProduct: (text) -> (Result);
-  scanBarcode: (text) -> (Result);
+  lookupProduct: (text, Product) -> (Result);
+  scanBarcode: (text, Product) -> (Result);
 }

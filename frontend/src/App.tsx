@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Container, Typography, Button, Card, CardContent, CardMedia, CircularProgress, TextField } from '@mui/material';
 import { backend } from 'declarations/backend';
 
@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [barcode, setBarcode] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const startScanning = async () => {
     setScanning(true);
@@ -28,6 +29,7 @@ const App: React.FC = () => {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
       }
+      detectBarcode();
     } catch (err) {
       console.error(err);
       setError('Failed to access camera');
@@ -43,13 +45,57 @@ const App: React.FC = () => {
     }
   };
 
-  const handleBarcodeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!barcode) return;
+  const detectBarcode = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    const detectFrame = () => {
+      if (videoRef.current) {
+        context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const code = processImageData(imageData);
+        if (code) {
+          setBarcode(code);
+          handleBarcodeSubmit(code);
+          return;
+        }
+      }
+      requestAnimationFrame(detectFrame);
+    };
+
+    requestAnimationFrame(detectFrame);
+  };
+
+  const processImageData = (imageData: ImageData): string | null => {
+    // This is a placeholder for actual barcode detection logic
+    // In a real implementation, you'd use a barcode detection library here
+    return null;
+  };
+
+  const fetchProductData = async (barcode: string): Promise<Product> => {
+    const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch product data');
+    }
+    const data = await response.json();
+    return {
+      name: data.product.product_name || 'Unknown',
+      brand: data.product.brands || 'Unknown',
+      categories: data.product.categories || 'Unknown',
+      image_url: data.product.image_url || 'https://example.com/placeholder.jpg',
+    };
+  };
+
+  const handleBarcodeSubmit = async (code: string) => {
+    if (!code) return;
 
     setLoading(true);
     try {
-      const response = await backend.scanBarcode(barcode);
+      const productData = await fetchProductData(code);
+      const response = await backend.scanBarcode(code, productData);
       if ('ok' in response) {
         setProduct(response.ok);
       } else {
@@ -70,30 +116,29 @@ const App: React.FC = () => {
       </Typography>
       {!scanning && !product && (
         <Button variant="contained" color="primary" onClick={startScanning}>
-          Start Camera
+          Start Scanning
         </Button>
       )}
       {scanning && (
         <div>
           <video ref={videoRef} style={{ width: '100%', maxWidth: '500px' }} />
+          <canvas ref={canvasRef} style={{ display: 'none' }} width="640" height="480" />
           <Button variant="contained" color="secondary" onClick={stopScanning}>
-            Stop Camera
+            Stop Scanning
           </Button>
         </div>
       )}
-      <form onSubmit={handleBarcodeSubmit}>
-        <TextField
-          fullWidth
-          label="Enter Barcode"
-          variant="outlined"
-          value={barcode}
-          onChange={(e) => setBarcode(e.target.value)}
-          margin="normal"
-        />
-        <Button type="submit" variant="contained" color="primary">
-          Lookup Product
-        </Button>
-      </form>
+      <TextField
+        fullWidth
+        label="Detected Barcode"
+        variant="outlined"
+        value={barcode}
+        onChange={(e) => setBarcode(e.target.value)}
+        margin="normal"
+      />
+      <Button variant="contained" color="primary" onClick={() => handleBarcodeSubmit(barcode)}>
+        Lookup Product
+      </Button>
       {loading && <CircularProgress />}
       {error && (
         <Typography color="error" variant="body1">

@@ -7,8 +7,8 @@ export const idlFactory = ({ IDL }) => {
   });
   const Result = IDL.Variant({ 'ok' : Product, 'err' : IDL.Text });
   return IDL.Service({
-    'lookupProduct' : IDL.Func([IDL.Text], [Result], []),
-    'scanBarcode' : IDL.Func([IDL.Text], [Result], []),
+    'lookupProduct' : IDL.Func([IDL.Text, Product], [Result], []),
+    'scanBarcode' : IDL.Func([IDL.Text, Product], [Result], []),
   });
 };
 export const init = ({ IDL }) => { return []; };

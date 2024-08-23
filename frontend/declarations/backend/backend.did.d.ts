@@ -11,8 +11,8 @@ export interface Product {
 export type Result = { 'ok' : Product } |
   { 'err' : string };
 export interface _SERVICE {
-  'lookupProduct' : ActorMethod<[string], Result>,
-  'scanBarcode' : ActorMethod<[string], Result>,
+  'lookupProduct' : ActorMethod<[string, Product], Result>,
+  'scanBarcode' : ActorMethod<[string, Product], Result>,
 }
 export declare const idlFactory: IDL.InterfaceFactory;
 export declare const init: (args: { IDL: typeof IDL }) => IDL.Type[];

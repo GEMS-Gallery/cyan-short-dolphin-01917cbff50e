@@ -1,18 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Container, Typography, Button, Card, CardContent, CardMedia, CircularProgress, TextField, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Container, Typography, Button, List, ListItem, ListItemText, CircularProgress, TextField, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { backend } from 'declarations/backend';
 import * as THREE from 'three';
 
-type Product = {
-  name: string;
-  brand: string;
-  categories: string;
-  image_url: string;
+type BarcodeEntry = {
+  barcode: string;
+  timestamp: number;
 };
 
 const App: React.FC = () => {
   const [scanning, setScanning] = useState(false);
-  const [product, setProduct] = useState<Product | null>(null);
+  const [barcodeHistory, setBarcodeHistory] = useState<BarcodeEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [barcode, setBarcode] = useState('');
@@ -20,9 +18,21 @@ const App: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  useEffect(() => {
+    fetchBarcodeHistory();
+  }, []);
+
+  const fetchBarcodeHistory = async () => {
+    try {
+      const history = await backend.getHistory();
+      setBarcodeHistory(history);
+    } catch (err) {
+      console.error('Failed to fetch barcode history:', err);
+    }
+  };
+
   const startScanning = async () => {
     setScanning(true);
-    setProduct(null);
     setError(null);
 
     try {
@@ -124,33 +134,17 @@ const App: React.FC = () => {
     return code.length >= 8 ? code : null;
   };
 
-  const fetchProductData = async (barcode: string): Promise<Product> => {
-    // In a real application, you would make an API call here to fetch product data
-    // For this example, we'll return placeholder data
-    return {
-      name: `Product ${barcode}`,
-      brand: 'Unknown Brand',
-      categories: 'Unknown Category',
-      image_url: 'https://example.com/placeholder.jpg',
-    };
-  };
-
   const handleBarcodeSubmit = async (code: string) => {
     if (!code) return;
 
     setLoading(true);
     setError(null);
     try {
-      const productData = await fetchProductData(code);
-      const response = await backend.scanBarcode(code, productData);
-      if ('ok' in response) {
-        setProduct(response.ok);
-      } else {
-        setError('Failed to save product information');
-      }
+      await backend.recordBarcode(code);
+      await fetchBarcodeHistory();
     } catch (err) {
       console.error(err);
-      setError('Failed to fetch product information');
+      setError('Failed to record barcode');
     } finally {
       setLoading(false);
     }
@@ -161,7 +155,7 @@ const App: React.FC = () => {
       <Typography variant="h4" component="h1" gutterBottom>
         Barcode Scanner App
       </Typography>
-      {!scanning && !product && (
+      {!scanning && (
         <Button variant="contained" color="primary" onClick={startScanning}>
           Start Scanning
         </Button>
@@ -184,7 +178,7 @@ const App: React.FC = () => {
         margin="normal"
       />
       <Button variant="contained" color="primary" onClick={() => handleBarcodeSubmit(barcode)}>
-        Lookup Product
+        Record Barcode
       </Button>
       {loading && <CircularProgress />}
       {error && (
@@ -192,27 +186,19 @@ const App: React.FC = () => {
           {error}
         </Typography>
       )}
-      {product && (
-        <Card>
-          <CardMedia
-            component="img"
-            height="140"
-            image={product.image_url}
-            alt={product.name}
-          />
-          <CardContent>
-            <Typography gutterBottom variant="h5" component="div">
-              {product.name}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Brand: {product.brand}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Categories: {product.categories}
-            </Typography>
-          </CardContent>
-        </Card>
-      )}
+      <Typography variant="h6" component="h2" gutterBottom style={{ marginTop: '20px' }}>
+        Barcode History
+      </Typography>
+      <List>
+        {barcodeHistory.map((entry, index) => (
+          <ListItem key={index}>
+            <ListItemText
+              primary={entry.barcode}
+              secondary={new Date(entry.timestamp / 1000000).toLocaleString()}
+            />
+          </ListItem>
+        ))}
+      </List>
       <Dialog
         open={openDialog}
         onClose={() => setOpenDialog(false)}
@@ -222,7 +208,7 @@ const App: React.FC = () => {
         <DialogTitle id="alert-dialog-title">Barcode Detected</DialogTitle>
         <DialogContent>
           <DialogContentText id="alert-dialog-description">
-            A barcode has been detected: {barcode}. Do you want to look up this product?
+            A barcode has been detected: {barcode}. Do you want to record this barcode?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -231,7 +217,7 @@ const App: React.FC = () => {
             setOpenDialog(false);
             handleBarcodeSubmit(barcode);
           }} autoFocus>
-            Look up
+            Record
           </Button>
         </DialogActions>
       </Dialog>

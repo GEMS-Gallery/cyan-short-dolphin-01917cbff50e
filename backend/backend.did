@@ -1,16 +1,14 @@
 type Result = 
  variant {
    err: text;
-   ok: Product;
+   ok;
  };
-type Product = 
+type BarcodeEntry = 
  record {
-   brand: text;
-   categories: text;
-   image_url: text;
-   name: text;
+   barcode: text;
+   timestamp: int;
  };
 service : {
-  lookupProduct: (text, Product) -> (Result);
-  scanBarcode: (text, Product) -> (Result);
+  getHistory: () -> (vec BarcodeEntry) query;
+  recordBarcode: (text) -> (Result);
 }

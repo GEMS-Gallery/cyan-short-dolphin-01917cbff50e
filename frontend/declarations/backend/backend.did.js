@@ -1,14 +1,12 @@
 export const idlFactory = ({ IDL }) => {
-  const Product = IDL.Record({
-    'categories' : IDL.Text,
-    'image_url' : IDL.Text,
-    'name' : IDL.Text,
-    'brand' : IDL.Text,
+  const BarcodeEntry = IDL.Record({
+    'barcode' : IDL.Text,
+    'timestamp' : IDL.Int,
   });
-  const Result = IDL.Variant({ 'ok' : Product, 'err' : IDL.Text });
+  const Result = IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text });
   return IDL.Service({
-    'lookupProduct' : IDL.Func([IDL.Text, Product], [Result], []),
-    'scanBarcode' : IDL.Func([IDL.Text, Product], [Result], []),
+    'getHistory' : IDL.Func([], [IDL.Vec(BarcodeEntry)], ['query']),
+    'recordBarcode' : IDL.Func([IDL.Text], [Result], []),
   });
 };
 export const init = ({ IDL }) => { return []; };
